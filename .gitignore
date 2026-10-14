@@ -1,0 +1,54 @@
+# ==========================================
+# Frappe & ERPNext v16 Enterprise Dev GitIgnore
+# ==========================================
+
+# Local environment configuration
+.env
+!.env.example
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Logs & Runtime State
+*.log
+*.log.*
+*.pid
+dashboard/*.log
+frappe-bench/logs/
+frappe-bench/sites/*/logs/
+frappe-bench/sites/*/locks/
+frappe-bench/sites/*/site_config.json.bak
+frappe-bench/sites/currentsite.txt
+
+# Python & Node compiled artifacts
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Frappe Bench internal build assets & virtual environment
+frappe-bench/env/
+frappe-bench/config/
+frappe-bench/sites/assets/
+
+# Frappe Bench Apps (Each app has its own git repository for GitHub publishing)
+frappe-bench/apps/
+
+# Local Site Backups (Managed via bench backup)
+frappe-bench/sites/*/private/backups/
+
+# Shared Seed Snapshots (Explicitly tracked for cross-machine sync)
+!seed-data/
+!seed-data/*

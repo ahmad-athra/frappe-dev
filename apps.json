@@ -1,0 +1,12 @@
+[
+  {
+    "name": "erpnext",
+    "url": "https://github.com/frappe/erpnext.git",
+    "branch": "version-16"
+  },
+  {
+    "name": "enterprise_hub",
+    "local_path": "apps/enterprise_hub",
+    "branch": "version-16"
+  }
+]

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frappe & ERPNext v16 Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #1e293b;
+      --border-color: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-primary: #3b82f6;
+      --accent-primary-hover: #2563eb;
+      --accent-success: #10b981;
+      --accent-warning: #f59e0b;
+      --accent-danger: #ef4444;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+    .title h1 {
+      font-size: 24px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge-v16 {
+      background-color: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid #3b82f6;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-pill {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-online {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: var(--accent-success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-offline {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--accent-danger);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn {
+      background-color: var(--accent-primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+    .btn:hover { background-color: var(--accent-primary-hover); }
+    .btn-secondary {
+      background-color: #334155;
+      color: #e2e8f0;
+    }
+    .btn-secondary:hover { background-color: #475569; }
+    .btn-danger {
+      background-color: #b91c1c;
+      color: white;
+    }
+    .btn-danger:hover { background-color: #dc2626; }
+    .btn-success {
+      background-color: #059669;
+      color: white;
+    }
+    .btn-success:hover { background-color: #10b981; }
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background-color: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .mono { font-family: var(--font-mono); }
+    .text-muted { color: var(--text-secondary); font-size: 13px; }
+    .quick-links {
+      display: flex;
+      gap: 12px;
+    }
+    .quick-link-btn {
+      text-decoration: none;
+      background-color: #1e293b;
+      border: 1px solid #475569;
+      color: #60a5fa;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .quick-link-btn:hover {
+      background-color: #334155;
+      border-color: #3b82f6;
+    }
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background-color: #1e293b;
+      border: 1px solid #3b82f6;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">
+      <h1>
+        ⚡ Frappe Bench Control Center
+        <span class="badge-v16">v16 Suite</span>
+      </h1>
+      <p class="text-muted">Enterprise Dev Environment & Orchestration</p>
+    </div>
+    <div class="quick-links">
+      <a href="http://localhost:8000" target="_blank" class="quick-link-btn">
+        🌐 Open Frappe Desk (:8000)
+      </a>
+      <a href="http://localhost:9000" target="_blank" class="quick-link-btn">
+        🔌 Socket.IO (:9000)
+      </a>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- Stack Lifecycle -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🖥️ Dev Server & Honcho</span>
+        <span id="server-status" class="status-pill status-offline">Checking...</span>
+      </div>
+      <p class="text-muted">Manages web server, realtime socketio, and background workers.</p>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="postAction('server/start')">▶️ Start Dev Server</button>
+        <button class="btn btn-danger" onclick="postAction('server/stop')">⏹️ Stop Dev Server</button>
+      </div>
+    </div>
+
+    <!-- Background Workers -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⚙️ Background RQ Workers</span>
+        <span id="workers-status" class="status-pill status-offline">Checking...</span>
+      </div>
+      <p class="text-muted">Handles asynchronous jobs (worker_short, worker_long, worker_default).</p>
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="postAction('workers/restart')">🔄 Restart Workers</button>
+      </div>
+    </div>
+
+    <!-- Schedulers -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">⏰ Bench Scheduler</span>
+        <span id="scheduler-status" class="status-pill status-offline">Checking...</span>
+      </div>
+      <p class="text-muted">Automated cron jobs and recurring background events.</p>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="postAction('scheduler/toggle', {enable: true})">⚡ Enable</button>
+        <button class="btn btn-secondary" onclick="postAction('scheduler/toggle', {enable: false})">⏸️ Disable</button>
+      </div>
+    </div>
+
+    <!-- Database & Backups -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">💾 Database & Backups</span>
+        <button class="btn" onclick="postAction('backup')">➕ Create Backup</button>
+      </div>
+      <div id="backups-list" style="margin-top: 12px; max-height: 180px; overflow-y: auto;">
+        <p class="text-muted">Loading backups...</p>
+      </div>
+    </div>
+
+    <!-- Apps Management -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📦 Installed Apps</span>
+      </div>
+      <div id="apps-list" style="margin-top: 12px;">
+        <p class="text-muted">Loading apps...</p>
+      </div>
+    </div>
+
+    <!-- Redis Cache & Queue -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🚀 Redis Caching & Queue</span>
+        <span class="status-pill status-online">Connected</span>
+      </div>
+      <p class="text-muted">Isolated cache & queue containers for high concurrency.</p>
+      <div class="btn-group">
+        <button class="btn btn-danger" onclick="postAction('redis/flush')">🧹 Flush All Cache & Queues</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        // Server status
+        const serverStatus = document.getElementById('server-status');
+        if (data.honcho_running || data.web_running) {
+          serverStatus.className = 'status-pill status-online';
+          serverStatus.innerText = 'Running';
+        } else {
+          serverStatus.className = 'status-pill status-offline';
+          serverStatus.innerText = 'Stopped';
+        }
+
+        // Workers status
+        const workersStatus = document.getElementById('workers-status');
+        if (data.workers_running) {
+          workersStatus.className = 'status-pill status-online';
+          workersStatus.innerText = 'Active';
+        } else {
+          workersStatus.className = 'status-pill status-offline';
+          workersStatus.innerText = 'Idle / Stopped';
+        }
+
+        // Scheduler status
+        const schedStatus = document.getElementById('scheduler-status');
+        if (data.schedule_running) {
+          schedStatus.className = 'status-pill status-online';
+          schedStatus.innerText = 'Enabled';
+        } else {
+          schedStatus.className = 'status-pill status-offline';
+          schedStatus.innerText = 'Disabled';
+        }
+
+        // Apps list
+        const appsList = document.getElementById('apps-list');
+        if (data.apps && data.apps.length > 0) {
+          appsList.innerHTML = data.apps.map(app => `
+            <div class="list-item">
+              <span class="mono"><strong>${app}</strong></span>
+              <span class="badge-v16">Installed</span>
+            </div>
+          `).join('');
+        } else {
+          appsList.innerHTML = '<p class="text-muted">No apps detected.</p>';
+        }
+
+        // Backups list
+        const backupsList = document.getElementById('backups-list');
+        if (data.backups && data.backups.length > 0) {
+          backupsList.innerHTML = data.backups.map(b => `
+            <div class="list-item">
+              <div>
+                <div class="mono" style="font-size: 11px;">${b.filename}</div>
+                <div class="text-muted" style="font-size: 11px;">${b.size_mb} MB</div>
+              </div>
+              <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="postAction('restore', {filename: '${b.filename}'})">Restore</button>
+            </div>
+          `).join('');
+        } else {
+          backupsList.innerHTML = '<p class="text-muted">No backups yet. Click "Create Backup" above.</p>';
+        }
+
+      } catch (err) {
+        console.error('Failed to load status:', err);
+      }
+    }
+
+    async function postAction(action, payload = {}) {
+      try {
+        showToast('Executing ' + action + '...');
+        const res = await fetch('/api/' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        showToast('Success!');
+        setTimeout(fetchStatus, 1500);
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>

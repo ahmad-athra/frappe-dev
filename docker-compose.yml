@@ -1,0 +1,63 @@
+services:
+  mariadb:
+    image: mariadb:11.8
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --innodb-file-per-table=1
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-123}
+      MARIADB_AUTO_UPGRADE: 1
+    ports:
+      - "127.0.0.1:${MARIADB_PORT:-3306}:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:alpine
+    command: ["redis-server", "--appendonly", "no"]
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-queue-data:/data
+    restart: unless-stopped
+
+  frappe:
+    image: frappe/bench:latest
+    command: sleep infinity
+    environment:
+      - SHELL=/bin/bash
+      - FRAPPE_BIND_ADDR=0.0.0.0
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
+      - "127.0.0.1:${SOCKETIO_PORT:-9000}:9000"
+      - "127.0.0.1:${WATCHER_PORT:-6787}:6787"
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - ./frappe-bench:/workspace/frappe-bench:cached
+      - ./dashboard:/workspace/dashboard:cached
+      - ./apps.json:/workspace/apps.json:ro
+      - ./seed-data:/workspace/seed-data:cached
+    working_dir: /workspace/frappe-bench
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mariadb-data:
+  redis-queue-data:

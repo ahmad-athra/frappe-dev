@@ -1,0 +1,13 @@
+{
+ "db_host": "mariadb",
+ "db_name": "_d954df721396e021",
+ "db_password": "dRXezuJLqEcwKf7q",
+ "db_type": "mariadb",
+ "db_user": "_d954df721396e021",
+ "developer_mode": 1,
+ "installed_apps": [
+  "frappe",
+  "erpnext",
+  "enterprise_hub"
+ ]
+}
