@@ -38,6 +38,9 @@ services:
     environment:
       - SHELL=/bin/bash
       - FRAPPE_BIND_ADDR=0.0.0.0
+      - WEB_PORT=${WEB_PORT:-8000}
+      - SOCKETIO_PORT=${SOCKETIO_PORT:-9000}
+      - DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
     ports:
       - "127.0.0.1:${WEB_PORT:-8000}:8000"
       - "127.0.0.1:${SOCKETIO_PORT:-9000}:9000"
@@ -48,6 +51,7 @@ services:
       - ./dashboard:/workspace/dashboard:cached
       - ./apps.json:/workspace/apps.json:ro
       - ./seed-data:/workspace/seed-data:cached
+      - ./.env:/workspace/.env:ro
     working_dir: /workspace/frappe-bench
     depends_on:
       mariadb:

@@ -5,6 +5,13 @@ COMPOSE_FILE="docker-compose.yml"
 FRAPPE_SERVICE="frappe"
 DEFAULT_SITE="development.localhost"
 
+if [ -f .env ]; then
+    export $(grep -E '^(WEB_PORT|SOCKETIO_PORT|DASHBOARD_PORT)=' .env | xargs)
+fi
+WEB_PORT="${WEB_PORT:-8000}"
+SOCKETIO_PORT="${SOCKETIO_PORT:-9000}"
+DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
+
 COMMAND="${1:-help}"
 shift || true
 
@@ -26,11 +33,11 @@ case "$COMMAND" in
     start)
         if [[ "$1" == "-d" ]]; then
             echo "Starting Frappe Bench Dev Server in background..."
-            docker compose -f "$COMPOSE_FILE" exec -d "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker_short worker_long worker_default web > /workspace/frappe-bench/logs/honcho.log 2>&1"
+            docker compose -f "$COMPOSE_FILE" exec -d "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker web > /workspace/frappe-bench/logs/honcho.log 2>&1"
             echo "Bench server started in background! Check logs with: ./bench.sh logs"
         else
-            echo "Starting Frappe Bench Dev Server (port 8000, socketio 9000)..."
-            docker compose -f "$COMPOSE_FILE" exec -it "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker_short worker_long worker_default web"
+            echo "Starting Frappe Bench Dev Server (port $WEB_PORT, socketio $SOCKETIO_PORT)..."
+            docker compose -f "$COMPOSE_FILE" exec -it "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker web"
         fi
         ;;
     stop)
@@ -121,7 +128,7 @@ case "$COMMAND" in
         docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" tail -n 50 -f /workspace/frappe-bench/logs/honcho.log
         ;;
     dashboard)
-        echo "Starting Web Control Center on http://localhost:8080 ..."
+        echo "Starting Web Control Center on http://localhost:$DASHBOARD_PORT ..."
         docker compose -f "$COMPOSE_FILE" exec -d "$FRAPPE_SERVICE" bash -c "python3 /workspace/dashboard/app.py > /workspace/dashboard/dashboard.log 2>&1"
         ;;
     exec)

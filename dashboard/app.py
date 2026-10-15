@@ -17,9 +17,48 @@ import subprocess
 import urllib.parse
 from http import HTTPStatus
 
-PORT = 8080
+PORT = int(os.environ.get("DASHBOARD_PORT", 8080))
 BENCH_DIR = "/workspace/frappe-bench"
 DEFAULT_SITE = "development.localhost"
+
+
+def get_env_ports():
+    web_port = os.environ.get("WEB_PORT")
+    socketio_port = os.environ.get("SOCKETIO_PORT")
+    dashboard_port = os.environ.get("DASHBOARD_PORT")
+
+    # If missing from environment, attempt to parse .env file
+    if not (web_port and socketio_port and dashboard_port):
+        env_paths = [
+            "/workspace/.env",
+            os.path.join(os.path.dirname(__file__), "..", ".env"),
+            os.path.join(BENCH_DIR, "..", ".env"),
+            ".env",
+        ]
+        for ep in env_paths:
+            if os.path.exists(ep):
+                try:
+                    with open(ep, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#") and "=" in line:
+                                k, v = line.split("=", 1)
+                                k = k.strip()
+                                v = v.strip().strip("'\"")
+                                if k == "WEB_PORT" and not web_port:
+                                    web_port = v
+                                elif k == "SOCKETIO_PORT" and not socketio_port:
+                                    socketio_port = v
+                                elif k == "DASHBOARD_PORT" and not dashboard_port:
+                                    dashboard_port = v
+                except Exception:
+                    pass
+
+    return {
+        "web_port": web_port or "8000",
+        "socketio_port": socketio_port or "9000",
+        "dashboard_port": dashboard_port or "8080",
+    }
 
 
 def run_cmd(cmd, cwd=BENCH_DIR):
@@ -43,12 +82,14 @@ def run_cmd(cmd, cwd=BENCH_DIR):
 
 
 def get_status():
+    ports = get_env_ports()
+
     # Check processes
     ps_res = run_cmd("ps aux")
     ps_out = ps_res.get("stdout", "")
 
     honcho_running = "honcho" in ps_out or "bench_helper" in ps_out
-    web_running = "serve" in ps_out or ":8000" in ps_out or honcho_running
+    web_running = "serve" in ps_out or f":{ports['web_port']}" in ps_out or honcho_running
     socketio_running = "socketio" in ps_out
     workers_running = "worker" in ps_out
     schedule_running = "schedule" in ps_out
@@ -85,6 +126,9 @@ def get_status():
         "apps": apps,
         "backups": backups,
         "scheduler_details": sched_info.get("stdout", "") or sched_info.get("stderr", ""),
+        "web_port": ports["web_port"],
+        "socketio_port": ports["socketio_port"],
+        "dashboard_port": ports["dashboard_port"],
     }
 
 
@@ -111,8 +155,13 @@ class ControlHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             html_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
             if os.path.exists(html_path):
-                with open(html_path, "rb") as f:
-                    self.wfile.write(f.read())
+                with open(html_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                ports = get_env_ports()
+                content = content.replace("{{WEB_PORT}}", str(ports["web_port"]))
+                content = content.replace("{{SOCKETIO_PORT}}", str(ports["socketio_port"]))
+                content = content.replace("{{DASHBOARD_PORT}}", str(ports["dashboard_port"]))
+                self.wfile.write(content.encode("utf-8"))
             else:
                 self.wfile.write(b"<h1>Frappe Bench Control Center</h1>")
         else:
@@ -146,7 +195,7 @@ class ControlHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(res)
 
         elif action == "server/start":
-            res = run_cmd("nohup honcho start socketio watch schedule worker_short worker_long worker_default web > /workspace/frappe-bench/logs/honcho.log 2>&1 &")
+            res = run_cmd("nohup honcho start socketio watch schedule worker web > /workspace/frappe-bench/logs/honcho.log 2>&1 &")
             self._send_json({"success": True, "message": "Dev server started"})
 
         elif action == "server/stop":

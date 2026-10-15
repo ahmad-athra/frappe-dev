@@ -195,11 +195,11 @@
       <p class="text-muted">Enterprise Dev Environment & Orchestration</p>
     </div>
     <div class="quick-links">
-      <a href="http://localhost:8000" target="_blank" class="quick-link-btn">
-        🌐 Open Frappe Desk (:8000)
+      <a id="desk-link" href="http://localhost:{{WEB_PORT}}" target="_blank" class="quick-link-btn">
+        🌐 Open Frappe Desk (:{{WEB_PORT}})
       </a>
-      <a href="http://localhost:9000" target="_blank" class="quick-link-btn">
-        🔌 Socket.IO (:9000)
+      <a id="socketio-link" href="http://localhost:{{SOCKETIO_PORT}}" target="_blank" class="quick-link-btn">
+        🔌 Socket.IO (:{{SOCKETIO_PORT}})
       </a>
     </div>
   </div>
@@ -291,6 +291,23 @@
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
+
+        // Update Quick Links dynamically from env
+        const host = window.location.hostname || 'localhost';
+        if (data.web_port) {
+          const deskLink = document.getElementById('desk-link');
+          if (deskLink) {
+            deskLink.href = `http://${host}:${data.web_port}`;
+            deskLink.innerHTML = `🌐 Open Frappe Desk (:${data.web_port})`;
+          }
+        }
+        if (data.socketio_port) {
+          const socketLink = document.getElementById('socketio-link');
+          if (socketLink) {
+            socketLink.href = `http://${host}:${data.socketio_port}`;
+            socketLink.innerHTML = `🔌 Socket.IO (:${data.socketio_port})`;
+          }
+        }
 
         // Server status
         const serverStatus = document.getElementById('server-status');

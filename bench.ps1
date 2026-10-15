@@ -18,6 +18,17 @@ $DefaultSite = "development.localhost"
 $ComposeFile = "docker-compose.yml"
 $FrappeService = "frappe"
 
+$WebPort = "8000"
+$SocketIOPort = "9000"
+$DashboardPort = "8080"
+if (Test-Path ".env") {
+    Get-Content ".env" | ForEach-Object {
+        if ($_ -match "^\s*WEB_PORT\s*=\s*(\d+)") { $WebPort = $matches[1] }
+        if ($_ -match "^\s*SOCKETIO_PORT\s*=\s*(\d+)") { $SocketIOPort = $matches[1] }
+        if ($_ -match "^\s*DASHBOARD_PORT\s*=\s*(\d+)") { $DashboardPort = $matches[1] }
+    }
+}
+
 function Print-Header {
     Write-Host "`n🚀 Frappe & ERPNext v16 Enterprise Dev CLI" -ForegroundColor Cyan
     Write-Host "========================================`n" -ForegroundColor DarkGray
@@ -87,12 +98,12 @@ switch ($Command.ToLower()) {
     }
     "start" {
         $IsDaemon = $ArgsList -contains "-d"
-        Write-Host "Starting Frappe Bench Dev Server (port 8000, socketio 9000)..." -ForegroundColor Cyan
+        Write-Host "Starting Frappe Bench Dev Server (port $WebPort, socketio $SocketIOPort)..." -ForegroundColor Cyan
         if ($IsDaemon) {
-            docker compose -f $ComposeFile exec -d $FrappeService bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker_short worker_long worker_default web > /workspace/frappe-bench/logs/honcho.log 2>&1"
+            docker compose -f $ComposeFile exec -d $FrappeService bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker web > /workspace/frappe-bench/logs/honcho.log 2>&1"
             Write-Host "Bench dev server started in background! Check logs with: .\bench.ps1 logs" -ForegroundColor Green
         } else {
-            docker compose -f $ComposeFile exec -it $FrappeService bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker_short worker_long worker_default web"
+            docker compose -f $ComposeFile exec -it $FrappeService bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker web"
         }
     }
     "stop" {
@@ -223,9 +234,9 @@ switch ($Command.ToLower()) {
         docker compose -f $ComposeFile exec $FrappeService tail -n 50 -f /workspace/frappe-bench/logs/honcho.log
     }
     "dashboard" {
-        Write-Host "Launching Web Control Center on http://localhost:8080 ..." -ForegroundColor Cyan
+        Write-Host "Launching Web Control Center on http://localhost:$DashboardPort ..." -ForegroundColor Cyan
         docker compose -f $ComposeFile exec -d $FrappeService bash -c "python3 /workspace/dashboard/app.py > /workspace/dashboard/dashboard.log 2>&1"
-        Start-Process "http://localhost:8080"
+        Start-Process "http://localhost:$DashboardPort"
     }
     "exec" {
         $BenchCmd = $ArgsList -join " "
