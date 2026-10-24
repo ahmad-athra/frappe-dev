@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+
+# Git Bash / MSYS on Windows rewrites any argument starting with "/" into a Windows path
+# ("/workspace/x" -> "C:/Program Files/Git/workspace/x") before docker sees it.
+# All paths we pass to `docker compose exec` are container paths, so disable that.
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
 
 COMPOSE_FILE="docker-compose.yml"
 FRAPPE_SERVICE="frappe"
@@ -40,8 +46,11 @@ case "$COMMAND" in
         # Fresh clone / new machine: rebuild apps, env, logs, assets and restore the seed DB.
         # Private apps (git@/ssh:// URLs) are cloned HERE on the host, where your SSH keys live;
         # the container has no git credentials. Everything else happens inside the container.
-        command -v python3 >/dev/null || { echo "python3 is required on the host to read apps.json"; exit 1; }
-        python3 -c 'import json,sys; [print("|".join([a["name"], a.get("url") or "", a.get("branch") or "version-16"])) for a in json.load(open(sys.argv[1]))]' apps.json |
+        echo "Ensuring Docker stack is up (recreates frappe if compose config changed)..."
+        docker compose -f "$COMPOSE_FILE" up -d
+        # Parse apps.json with the container's python: host python3 on Windows is often the Store stub.
+        docker compose -f "$COMPOSE_FILE" exec -T "$FRAPPE_SERVICE" python3 -c 'import json; [print("|".join([a["name"], a.get("url") or "", a.get("branch") or "version-16"])) for a in json.load(open("/workspace/apps.json"))]' |
+        tr -d '\r' |
         while IFS='|' read -r APP URL BRANCH; do
             if [[ "$URL" =~ ^(git@|ssh://) && ! -d "frappe-bench/apps/$APP/.git" ]]; then
                 echo "Cloning private app '$APP' on host ($URL, $BRANCH)..."
@@ -49,8 +58,6 @@ case "$COMMAND" in
                 git clone --branch "$BRANCH" "$URL" "frappe-bench/apps/$APP"
             fi
         done
-        echo "Ensuring Docker stack is up (recreates frappe if compose config changed)..."
-        docker compose -f "$COMPOSE_FILE" up -d
         docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" bash /workspace/scripts/setup-bench.sh
         ;;
     start)
