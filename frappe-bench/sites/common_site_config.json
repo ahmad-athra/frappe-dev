@@ -15,7 +15,7 @@
  "restart_systemd_on_update": false,
  "serve_default_site": true,
  "shallow_clone": true,
- "socketio_port": 9000,
+ "socketio_port": 9001,
  "use_redis_auth": false,
- "webserver_port": 8000
+ "webserver_port": 8001
 }

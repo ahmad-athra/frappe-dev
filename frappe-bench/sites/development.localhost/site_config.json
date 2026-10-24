@@ -5,6 +5,39 @@
  "db_type": "mariadb",
  "db_user": "_d954df721396e021",
  "developer_mode": 1,
+ "encryption_key": "gvHyXjrvfOgu54_3x_bdDsweEUp8Ugcx42USd4xHlww=",
+ "enterprise_hub_email": {
+  "accounts": [
+   {
+    "account_name": "Notifications",
+    "always_use_account_email_id_as_sender": 1,
+    "default_outgoing": 1,
+    "email_id": "notifications@hub.localhost",
+    "enable_outgoing": 1,
+    "password_env": "EH_MAIL_NOTIFICATIONS_PASSWORD",
+    "smtp_port": 465,
+    "smtp_server": "mail",
+    "use_ssl_for_outgoing": 1
+   },
+   {
+    "account_name": "Support",
+    "default_incoming": 1,
+    "email_id": "support@hub.localhost",
+    "email_server": "mail",
+    "enable_incoming": 1,
+    "imap_folders": [
+     {
+      "append_to": "Issue",
+      "folder_name": "INBOX"
+     }
+    ],
+    "incoming_port": 993,
+    "password_env": "EH_MAIL_SUPPORT_PASSWORD",
+    "use_ssl": 1,
+    "validate_ssl_certificate": 1
+   }
+  ]
+ },
  "installed_apps": [
   "frappe",
   "erpnext",

@@ -1,0 +1,12 @@
+{
+ "allow_tests": true,
+ "db_name": "_33d35fe9e0311b6f",
+ "db_password": "DiZuaTRcLvH3HrVZ",
+ "db_type": "mariadb",
+ "db_user": "_33d35fe9e0311b6f",
+ "encryption_key": "aH-fC3MzgKZYK_JhdPzvgl50agj44ayJCyS7-PRHIwc=",
+ "installed_apps": [
+  "frappe",
+  "enterprise_hub"
+ ]
+}
