@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 set -e
 
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
 COMPOSE_FILE="docker-compose.yml"
 FRAPPE_SERVICE="frappe"
-DEFAULT_SITE="development.localhost"
 
 if [ -f .env ]; then
-    export $(grep -E '^(WEB_PORT|SOCKETIO_PORT|DASHBOARD_PORT)=' .env | xargs)
+    export $(grep -E '^(WEB_PORT|SOCKETIO_PORT|DASHBOARD_PORT|SITE_NAME|DB_ROOT_PASSWORD)=' .env | tr -d '\r' | xargs)
 fi
 WEB_PORT="${WEB_PORT:-8000}"
 SOCKETIO_PORT="${SOCKETIO_PORT:-9000}"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
+DEFAULT_SITE="${SITE_NAME:-development.localhost}"
+DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-123}"
+
+# Fails fast with an actionable message when git-ignored bench state is missing.
+PREFLIGHT="bash /workspace/scripts/setup-bench.sh --check"
 
 COMMAND="${1:-help}"
 shift || true
@@ -30,7 +36,25 @@ case "$COMMAND" in
     bash)
         docker compose -f "$COMPOSE_FILE" exec -e "TERM=xterm-256color" -it "$FRAPPE_SERVICE" bash
         ;;
+    setup)
+        # Fresh clone / new machine: rebuild apps, env, logs, assets and restore the seed DB.
+        # Private apps (git@/ssh:// URLs) are cloned HERE on the host, where your SSH keys live;
+        # the container has no git credentials. Everything else happens inside the container.
+        command -v python3 >/dev/null || { echo "python3 is required on the host to read apps.json"; exit 1; }
+        python3 -c 'import json,sys; [print("|".join([a["name"], a.get("url") or "", a.get("branch") or "version-16"])) for a in json.load(open(sys.argv[1]))]' apps.json |
+        while IFS='|' read -r APP URL BRANCH; do
+            if [[ "$URL" =~ ^(git@|ssh://) && ! -d "frappe-bench/apps/$APP/.git" ]]; then
+                echo "Cloning private app '$APP' on host ($URL, $BRANCH)..."
+                mkdir -p frappe-bench/apps
+                git clone --branch "$BRANCH" "$URL" "frappe-bench/apps/$APP"
+            fi
+        done
+        echo "Ensuring Docker stack is up (recreates frappe if compose config changed)..."
+        docker compose -f "$COMPOSE_FILE" up -d
+        docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" bash /workspace/scripts/setup-bench.sh
+        ;;
     start)
+        docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" $PREFLIGHT
         if [[ "$1" == "-d" ]]; then
             echo "Starting Frappe Bench Dev Server in background..."
             docker compose -f "$COMPOSE_FILE" exec -d "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && honcho start socketio watch schedule worker web > /workspace/frappe-bench/logs/honcho.log 2>&1"
@@ -46,9 +70,9 @@ case "$COMMAND" in
         echo "Stopped."
         ;;
     restart)
-        $0 stop
+        ./bench.sh stop
         sleep 2
-        $0 start -d
+        ./bench.sh start -d
         ;;
     worker)
         SUB="${1:-status}"
@@ -85,7 +109,7 @@ case "$COMMAND" in
     restore-seed)
         SITE="${1:-$DEFAULT_SITE}"
         echo "Restoring seed snapshot into '$SITE'..."
-        docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && bench --site $SITE restore /workspace/seed-data/latest-seed.sql.gz --db-root-password 123"
+        docker compose -f "$COMPOSE_FILE" exec "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && bench --site $SITE restore /workspace/seed-data/latest-seed.sql.gz --db-root-password '$DB_ROOT_PASSWORD'"
         ;;
     install-app)
         APP="$1"
@@ -135,6 +159,6 @@ case "$COMMAND" in
         docker compose -f "$COMPOSE_FILE" exec -it "$FRAPPE_SERVICE" bash -c "cd /workspace/frappe-bench && bench $*"
         ;;
     *)
-        echo "Usage: ./bench.sh [up|down|ps|bash|start|stop|restart|worker|scheduler|backup|export-seed|restore-seed|install-app|uninstall-app|new-app|get-app|migrate|console|redis|logs|dashboard|exec]"
+        echo "Usage: ./bench.sh [up|down|ps|bash|setup|start|stop|restart|worker|scheduler|backup|export-seed|restore-seed|install-app|uninstall-app|new-app|get-app|migrate|console|redis|logs|dashboard|exec]"
         ;;
 esac

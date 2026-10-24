@@ -6,6 +6,7 @@
   },
   {
     "name": "enterprise_hub",
+    "url": "git@github.com:ahmad-athra/enterprise_hub.git",
     "local_path": "apps/enterprise_hub",
     "branch": "version-16"
   }

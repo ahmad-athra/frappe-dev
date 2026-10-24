@@ -50,6 +50,9 @@ graph TD
 | **Realtime Socket.IO** | [http://localhost:9000](http://localhost:9000) | Live events, notifications, and document sync |
 | **Web Control Center** | [http://localhost:8080](http://localhost:8080) | GUI for backups, workers, schedulers, and Redis |
 | **MariaDB Server** | `127.0.0.1:3306` | External SQL tools connection (`root` / `123`) |
+| **Mailpit (dev mail catcher)** | [http://localhost:8025](http://localhost:8025) | Every email sent to an external address in dev lands here (F-006) |
+| **Stalwart Mail Admin** | [http://localhost:8090](http://localhost:8090) | Mail server admin (`admin` / `MAIL_ADMIN_PASSWORD` from `.env`) |
+| **SMTP / IMAP** | `127.0.0.1:465` / `127.0.0.1:993` | Mailboxes `notifications@hub.localhost`, `support@hub.localhost` (F-006) |
 
 ---
 
@@ -147,13 +150,33 @@ cd frappe-dev-stack
 # 2. Copy environment settings
 Copy-Item .env.example .env
 
-# 3. Start Docker stack
-.\bench.ps1 up
+# 3. Bootstrap the bench (idempotent; safe to re-run)
+#    Starts the stack, clones frappe + every app in apps.json, creates env/,
+#    installs python/node deps, builds assets, restores the seed DB if missing.
+.\bench.ps1 setup          # Linux/macOS/WSL: ./bench.sh setup
 
-# 4. Restore the seed database into MariaDB
-.\bench.ps1 restore-seed
-
-# 5. Start dev server
+# 4. Start dev server
 .\bench.ps1 start -d
 ```
+
+```mermaid
+flowchart LR
+    A["git clone"] --> B[".env from .env.example"]
+    B --> C["bench setup"]
+    C --> C1["logs/, config/pids"]
+    C1 --> C2["clone apps (apps.json)"]
+    C2 --> C3["env/ + requirements"]
+    C3 --> C4["bench build"]
+    C4 --> C5["restore seed if DB missing"]
+    C5 --> D["bench start"]
+```
+
+> [!IMPORTANT]
+> `frappe-bench/apps/`, `env/`, `logs/`, `config/` and `sites/assets/` are git-ignored, so a fresh clone
+> cannot start until `setup` has run (`start` checks this and tells you). Every custom app must have a
+> pushed git remote and a `"url"` in [`apps.json`](apps.json), otherwise `setup` stops with an error.
+>
+> On a **Linux** host the container runs as uid 1000; if your user differs, run
+> `sudo chown -R 1000:1000 frappe-bench` once before `setup`.
+
 All your DocTypes, database records, and settings are replicated within seconds!

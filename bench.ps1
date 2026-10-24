@@ -21,13 +21,19 @@ $FrappeService = "frappe"
 $WebPort = "8000"
 $SocketIOPort = "9000"
 $DashboardPort = "8080"
+$DbRootPassword = "123"
 if (Test-Path ".env") {
     Get-Content ".env" | ForEach-Object {
         if ($_ -match "^\s*WEB_PORT\s*=\s*(\d+)") { $WebPort = $matches[1] }
         if ($_ -match "^\s*SOCKETIO_PORT\s*=\s*(\d+)") { $SocketIOPort = $matches[1] }
         if ($_ -match "^\s*DASHBOARD_PORT\s*=\s*(\d+)") { $DashboardPort = $matches[1] }
+        if ($_ -match "^\s*SITE_NAME\s*=\s*(\S+)") { $DefaultSite = $matches[1] }
+        if ($_ -match "^\s*DB_ROOT_PASSWORD\s*=\s*(\S+)") { $DbRootPassword = $matches[1] }
     }
 }
+
+# Fails fast with an actionable message when git-ignored bench state is missing.
+$SetupScript = "/workspace/scripts/setup-bench.sh"
 
 function Print-Header {
     Write-Host "`n🚀 Frappe & ERPNext v16 Enterprise Dev CLI" -ForegroundColor Cyan
@@ -41,7 +47,8 @@ function Show-Help {
     Write-Host "  up                 Start all Docker containers (MariaDB, Redis, Frappe)"
     Write-Host "  down               Stop all Docker containers"
     Write-Host "  ps / status        Show running container status and health"
-    Write-Host "  bash               Open interactive Bash shell inside frappe container`n"
+    Write-Host "  bash               Open interactive Bash shell inside frappe container"
+    Write-Host "  setup              Bootstrap a fresh clone (apps, env, logs, assets, seed DB) - idempotent`n"
 
     Write-Host "Dev Server & Honcho:" -ForegroundColor Green
     Write-Host "  start [-d]         Start bench dev server (foreground or -d for background)"
@@ -96,7 +103,27 @@ switch ($Command.ToLower()) {
     "bash" {
         docker compose -f $ComposeFile exec -e "TERM=xterm-256color" -it $FrappeService bash
     }
+    "setup" {
+        # Fresh clone / new machine: rebuild apps, env, logs, assets and restore the seed DB.
+        # Private apps (git@/ssh:// URLs) are cloned HERE on the host, where your SSH keys live;
+        # the container has no git credentials. Everything else happens inside the container.
+        foreach ($App in (Get-Content "apps.json" -Raw | ConvertFrom-Json)) {
+            $Branch = if ($App.branch) { $App.branch } else { "version-16" }
+            $Target = "frappe-bench/apps/$($App.name)"
+            if ($App.url -match '^(git@|ssh://)' -and -not (Test-Path "$Target/.git")) {
+                Write-Host "Cloning private app '$($App.name)' on host ($($App.url), $Branch)..." -ForegroundColor Cyan
+                git clone --branch $Branch $App.url $Target
+                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+        }
+        Write-Host "Ensuring Docker stack is up (recreates frappe if compose config changed)..." -ForegroundColor Cyan
+        docker compose -f $ComposeFile up -d
+        docker compose -f $ComposeFile exec $FrappeService bash $SetupScript
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
     "start" {
+        docker compose -f $ComposeFile exec $FrappeService bash $SetupScript --check
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $IsDaemon = $ArgsList -contains "-d"
         Write-Host "Starting Frappe Bench Dev Server (port $WebPort, socketio $SocketIOPort)..." -ForegroundColor Cyan
         if ($IsDaemon) {
@@ -157,7 +184,7 @@ switch ($Command.ToLower()) {
     "restore-seed" {
         $Site = if ($ArgsList.Count -gt 0) { $ArgsList[0] } else { $DefaultSite }
         Write-Host "Restoring seed snapshot into '$Site'..." -ForegroundColor Yellow
-        docker compose -f $ComposeFile exec $FrappeService bash -c "cd /workspace/frappe-bench && bench --site $Site restore /workspace/seed-data/latest-seed.sql.gz --db-root-password 123"
+        docker compose -f $ComposeFile exec $FrappeService bash -c "cd /workspace/frappe-bench && bench --site $Site restore /workspace/seed-data/latest-seed.sql.gz --db-root-password '$DbRootPassword'"
         Write-Host "Restore complete!" -ForegroundColor Green
     }
     "restore" {
@@ -167,7 +194,7 @@ switch ($Command.ToLower()) {
         }
         $File = $ArgsList[0]
         $Site = if ($ArgsList.Count -gt 1) { $ArgsList[1] } else { $DefaultSite }
-        docker compose -f $ComposeFile exec $FrappeService bash -c "cd /workspace/frappe-bench && bench --site $Site restore $File --db-root-password 123"
+        docker compose -f $ComposeFile exec $FrappeService bash -c "cd /workspace/frappe-bench && bench --site $Site restore $File --db-root-password '$DbRootPassword'"
     }
     "new-app" {
         if ($ArgsList.Count -lt 1) {
